@@ -2,222 +2,161 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>港式台牌番數計算器</title>
-
+<title>港式台牌計番</title>
 <style>
-body{
-    font-family:-apple-system,BlinkMacSystemFont;
-    background:#f2f2f7;
-    margin:0;
-    padding:15px;
-}
-
-.search{
-    margin-bottom:15px;
-}
-
-.search input{
-    width:100%;
-    padding:10px;
-    font-size:16px;
-    border-radius:12px;
-    border:1px solid #ccc;
-}
-
-.card{
-    background:#fff;
-    border-radius:18px;
-    margin-bottom:15px;
-    overflow:hidden;
-    box-shadow:0 4px 12px rgba(0,0,0,0.05);
-}
-
-.category-header{
-    padding:14px;
-    font-weight:bold;
-    display:flex;
-    justify-content:space-between;
-    cursor:pointer;
-    background:#fafafa;
-}
-
-.item{
-    display:flex;
-    justify-content:space-between;
-    padding:12px 14px;
-    border-top:1px solid #eee;
-}
-
-.hidden{
-    display:none;
-}
-
-.total{
-    position:sticky;
-    bottom:0;
-    background:#fff;
-    padding:18px;
-    font-size:22px;
-    font-weight:bold;
-    text-align:center;
-    border-top:1px solid #ddd;
-}
+body { font-family: Arial; padding:20px; background:#f5f5f5; }
+h2 { margin-top:30px; }
+.section { background:white; padding:15px; margin-bottom:20px; border-radius:10px; }
+table { width:100%; border-collapse: collapse; }
+td { padding:5px; }
+.total { font-size:24px; font-weight:bold; color:red; }
+.rule { font-weight:bold; margin-bottom:10px; }
+input[type=number]{ width:80px; }
 </style>
 </head>
 <body>
 
-<div class="search">
-<input type="text" id="searchInput" placeholder="搜尋番型...">
+<div class="section">
+<div class="rule">
+拉上劈下 開槓計暗間<br>
+順骰冧莊加換一次牌 圍骰加換三次牌 最多換三次
+</div>
 </div>
 
-<div id="app"></div>
+<div class="section">
+<h2>拉劈計數機</h2>
+原本番數：<input type="number" id="baseFan"><br><br>
+今次食胡番數：<input type="number" id="newFan"><br><br>
+<button onclick="calcLap()">計算</button>
+<p>被拉番數：<span id="lapResult">0</span></p>
+<p>劈：<span id="pikResult">0</span></p>
+</div>
 
-<div class="total">
-總番數：<span id="totalFan">0</span> 番
+<div class="section">
+<h2>陰蟄錢</h2>
+<table border="1">
+<tr><td>追殺</td><td>每家5</td></tr>
+<tr><td>暗槓</td><td>每家5</td></tr>
+<tr><td>花</td><td>每家5</td></tr>
+<tr><td>草</td><td>每家3</td></tr>
+<tr><td>詐胡</td><td>每家30</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>番表</h2>
+<div id="fanContainer"></div>
+</div>
+
+<div class="section total">
+總番數：<span id="totalFan">0</span>
 </div>
 
 <script>
 
-const categories = {
-    "莊":[
-        {name:"莊",value:1,type:"dealer"},
-        {name:"連莊",value:0,type:"dealerCount"}
-    ],
-    "一般":[
-        {name:"花",value:1},
-        {name:"正花",value:2},
-        {name:"字",value:2},
-        {name:"無字花",value:5},
-        {name:"門清",value:5},
-        {name:"不求人",value:10}
-    ],
-    "自摸":[
-        {name:"自摸",value:1},
-        {name:"門清自摸",value:8}
-    ],
-    "奇牌":[
-        {name:"清一色",value:100},
-        {name:"大三元",value:80},
-        {name:"十三么",value:150}
-    ]
+const fanData = {
+"莊":[
+["莊",1],
+["連莊",3]
+],
+"一般":[
+["花",1],["正花",2],["字",2],["無字",2],["無字花",5],["將眼",2],
+["對碰",2],["獨獨",2],["假獨",1],["老少",5],["門清",5],
+["缺一門",5],["缺五",5],["斷么",5],["不求人",10],["半求人",20],["全求人",40]
+],
+"叮":[
+["叮",5],["即食",5],["天叮",40],["地叮",20]
+],
+"自摸":[
+["自摸",1],["門清自摸",8],["花摸",1],["槓摸",5],["槓上槓摸",30]
+],
+"槓":[
+["槓",1],["暗槓",2],["兩槓",10],["三槓",30],["四槓",100],["五槓",240],
+["搶槓",5],["搶槓上槓",30]
+],
+"平胡":[["平胡",10],["無字花大平胡",20]],
+"雞胡":[["細雞",10],["大雞",20]],
+"暗間":[["兩暗",5],["三暗",15],["四暗",30],["五暗",60],["間間胡",100]],
+"般高 + 相逢":[
+["般高",5],["三般高",15],["四般高",30],
+["相逢",3],["三相逢",10],["四相逢",30],["五相逢",60],
+["半姊妹",20],["全姊妹",40]
+],
+"兄弟姊妹":[
+["兄弟",5],["小三兄弟",15],["大三兄弟",30],
+["姊妹",3],["小三姊妹",10],["大三姊妹",15]
+],
+"步步高":[
+["明三色步步高",5],["暗三色步步高",10],
+["明單色步步高",15],["暗單色步步高",20]
+],
+"歸":[
+["明四歸一",5],["明四歸二",15],["明四歸四",60],
+["暗四歸一",10],["暗四歸二",30],["暗四歸四",100]
+],
+"一條龍":[
+["明雜龍",8],["暗雜龍",15],["明清龍",15],["暗清龍",20]
+],
+"多門齊":[
+["小五門齊",10],["大五門齊",15],
+["小七門齊",15],["大七門齊",20]
+],
+"么九":[
+["混帶么",15],["全帶么",30],["混么九",40],["清么九",120]
+],
+"奇牌":[
+["混一色",40],["清一色",100],["對對胡",40],["小三元",40],
+["大三元",80],["小三風",40],["大三風",80],["小四喜",60],
+["大四喜",120],["字一色",150],["十六不搭",60],["十三么",150],
+["嚦咕嚦咕",40],["大嚦咕嚦咕",60],["天胡",100],
+["地胡",100],["人胡",80],["七搶一",30],["一搶七",30],["八仙過海",40]
+]
 };
 
-const app = document.getElementById("app");
-const totalFan = document.getElementById("totalFan");
-
-function render(){
-
-    for(let cat in categories){
-
-        const card = document.createElement("div");
-        card.className="card";
-
-        const header = document.createElement("div");
-        header.className="category-header";
-        header.innerHTML=`<span>${cat}</span><span>▾</span>`;
-
-        const body = document.createElement("div");
-
-        header.onclick=()=>{
-            body.classList.toggle("hidden");
-        };
-
-        categories[cat].forEach(item=>{
-
-            const div=document.createElement("div");
-            div.className="item";
-
-            if(item.type==="dealer"){
-                div.innerHTML=`
-                <label>
-                <input type="checkbox" id="dealerCheck">
-                ${item.name}
-                </label>
-                <span>1 番</span>
-                `;
-            }
-            else if(item.type==="dealerCount"){
-                div.innerHTML=`
-                <label>
-                連莊次數
-                <input type="number" id="dealerCount" value="0" min="0" style="width:60px">
-                </label>
-                <span id="dealerFan">0 番</span>
-                `;
-            }
-            else{
-                div.innerHTML=`
-                <label>
-                <input type="checkbox" value="${item.value}">
-                ${item.name}
-                </label>
-                <span>${item.value} 番</span>
-                `;
-            }
-
-            body.appendChild(div);
-        });
-
-        card.appendChild(header);
-        card.appendChild(body);
-        app.appendChild(card);
-    }
-
-    addEvents();
+function renderFans(){
+let container=document.getElementById("fanContainer");
+for(let category in fanData){
+let div=document.createElement("div");
+div.innerHTML="<h3>"+category+"</h3>";
+fanData[category].forEach(item=>{
+let id=category+item[0];
+div.innerHTML+=`<label>
+<input type="checkbox" value="${item[1]}" onchange="updateTotal()"> 
+${item[0]} (${item[1]}番)
+</label><br>`;
+});
+if(category==="莊"){
+div.innerHTML+=`
+<br>連莊次數：
+<input type="number" id="dealerCount" min="0" value="0" onchange="updateTotal()"> 
+(次數*2+1番)
+<br>`;
+}
+container.appendChild(div);
+}
 }
 
-function addEvents(){
-    document.querySelectorAll("input").forEach(el=>{
-        el.addEventListener("input",calculate);
-        el.addEventListener("change",calculate);
-    });
+function updateTotal(){
+let total=0;
+document.querySelectorAll("input[type=checkbox]:checked")
+.forEach(cb=> total+=parseInt(cb.value));
 
-    document.getElementById("searchInput")
-        .addEventListener("input",searchFan);
+let dealer=parseInt(document.getElementById("dealerCount")?.value||0);
+if(dealer>0) total+= dealer*2+1;
+
+document.getElementById("totalFan").innerText=total;
 }
 
-function calculate(){
-
-    let total=0;
-
-    document.querySelectorAll("input[type=checkbox]:checked")
-        .forEach(cb=>{
-            if(cb.id!=="dealerCheck")
-                total+=parseInt(cb.value||0);
-        });
-
-    const dealerCheck=document.getElementById("dealerCheck");
-    const dealerCount=document.getElementById("dealerCount");
-    const dealerFan=document.getElementById("dealerFan");
-
-    if(dealerCheck && dealerCheck.checked){
-        let val=dealerCount.value*2+1;
-        total+=val;
-        dealerFan.innerText=val+" 番";
-        dealerCount.disabled=false;
-    }else if(dealerCount){
-        dealerFan.innerText="0 番";
-        dealerCount.disabled=true;
-    }
-
-    totalFan.innerText=total;
+function calcLap(){
+let base=parseFloat(document.getElementById("baseFan").value||0);
+let newFan=parseFloat(document.getElementById("newFan").value||0);
+let lap=Math.ceil(base*1.5+newFan);
+let pik=Math.floor(lap/2);
+document.getElementById("lapResult").innerText=lap;
+document.getElementById("pikResult").innerText=pik;
 }
 
-function searchFan(){
-
-    const keyword=this.value.trim();
-
-    document.querySelectorAll(".item").forEach(item=>{
-        if(item.innerText.includes(keyword)){
-            item.classList.remove("hidden");
-        }else{
-            item.classList.add("hidden");
-        }
-    });
-}
-
-render();
+renderFans();
 
 </script>
 </body>
