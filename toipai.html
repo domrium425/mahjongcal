@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>港式台牌番數計算器</title>
+
+<style>
+body{
+    font-family:-apple-system,BlinkMacSystemFont;
+    background:#f2f2f7;
+    margin:0;
+    padding:15px;
+}
+
+.search{
+    margin-bottom:15px;
+}
+
+.search input{
+    width:100%;
+    padding:10px;
+    font-size:16px;
+    border-radius:12px;
+    border:1px solid #ccc;
+}
+
+.card{
+    background:#fff;
+    border-radius:18px;
+    margin-bottom:15px;
+    overflow:hidden;
+    box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+
+.category-header{
+    padding:14px;
+    font-weight:bold;
+    display:flex;
+    justify-content:space-between;
+    cursor:pointer;
+    background:#fafafa;
+}
+
+.item{
+    display:flex;
+    justify-content:space-between;
+    padding:12px 14px;
+    border-top:1px solid #eee;
+}
+
+.hidden{
+    display:none;
+}
+
+.total{
+    position:sticky;
+    bottom:0;
+    background:#fff;
+    padding:18px;
+    font-size:22px;
+    font-weight:bold;
+    text-align:center;
+    border-top:1px solid #ddd;
+}
+</style>
+</head>
+<body>
+
+<div class="search">
+<input type="text" id="searchInput" placeholder="搜尋番型...">
+</div>
+
+<div id="app"></div>
+
+<div class="total">
+總番數：<span id="totalFan">0</span> 番
+</div>
+
+<script>
+
+const categories = {
+    "莊":[
+        {name:"莊",value:1,type:"dealer"},
+        {name:"連莊",value:0,type:"dealerCount"}
+    ],
+    "一般":[
+        {name:"花",value:1},
+        {name:"正花",value:2},
+        {name:"字",value:2},
+        {name:"無字花",value:5},
+        {name:"門清",value:5},
+        {name:"不求人",value:10}
+    ],
+    "自摸":[
+        {name:"自摸",value:1},
+        {name:"門清自摸",value:8}
+    ],
+    "奇牌":[
+        {name:"清一色",value:100},
+        {name:"大三元",value:80},
+        {name:"十三么",value:150}
+    ]
+};
+
+const app = document.getElementById("app");
+const totalFan = document.getElementById("totalFan");
+
+function render(){
+
+    for(let cat in categories){
+
+        const card = document.createElement("div");
+        card.className="card";
+
+        const header = document.createElement("div");
+        header.className="category-header";
+        header.innerHTML=`<span>${cat}</span><span>▾</span>`;
+
+        const body = document.createElement("div");
+
+        header.onclick=()=>{
+            body.classList.toggle("hidden");
+        };
+
+        categories[cat].forEach(item=>{
+
+            const div=document.createElement("div");
+            div.className="item";
+
+            if(item.type==="dealer"){
+                div.innerHTML=`
+                <label>
+                <input type="checkbox" id="dealerCheck">
+                ${item.name}
+                </label>
+                <span>1 番</span>
+                `;
+            }
+            else if(item.type==="dealerCount"){
+                div.innerHTML=`
+                <label>
+                連莊次數
+                <input type="number" id="dealerCount" value="0" min="0" style="width:60px">
+                </label>
+                <span id="dealerFan">0 番</span>
+                `;
+            }
+            else{
+                div.innerHTML=`
+                <label>
+                <input type="checkbox" value="${item.value}">
+                ${item.name}
+                </label>
+                <span>${item.value} 番</span>
+                `;
+            }
+
+            body.appendChild(div);
+        });
+
+        card.appendChild(header);
+        card.appendChild(body);
+        app.appendChild(card);
+    }
+
+    addEvents();
+}
+
+function addEvents(){
+    document.querySelectorAll("input").forEach(el=>{
+        el.addEventListener("input",calculate);
+        el.addEventListener("change",calculate);
+    });
+
+    document.getElementById("searchInput")
+        .addEventListener("input",searchFan);
+}
+
+function calculate(){
+
+    let total=0;
+
+    document.querySelectorAll("input[type=checkbox]:checked")
+        .forEach(cb=>{
+            if(cb.id!=="dealerCheck")
+                total+=parseInt(cb.value||0);
+        });
+
+    const dealerCheck=document.getElementById("dealerCheck");
+    const dealerCount=document.getElementById("dealerCount");
+    const dealerFan=document.getElementById("dealerFan");
+
+    if(dealerCheck && dealerCheck.checked){
+        let val=dealerCount.value*2+1;
+        total+=val;
+        dealerFan.innerText=val+" 番";
+        dealerCount.disabled=false;
+    }else if(dealerCount){
+        dealerFan.innerText="0 番";
+        dealerCount.disabled=true;
+    }
+
+    totalFan.innerText=total;
+}
+
+function searchFan(){
+
+    const keyword=this.value.trim();
+
+    document.querySelectorAll(".item").forEach(item=>{
+        if(item.innerText.includes(keyword)){
+            item.classList.remove("hidden");
+        }else{
+            item.classList.add("hidden");
+        }
+    });
+}
+
+render();
+
+</script>
+</body>
+</html>
